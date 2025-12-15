@@ -9,15 +9,15 @@ Goal: Build a usable POS system that allows a coffee shop to take orders, store 
 
 ## 1️⃣ Project Setup & Tooling
 
-* [ ] Initialize Git repository
-* [ ] Create GitHub repository
+* [/] Initialize Git repository
+* [/] Create GitHub repository
 * [ ] Set up Vite + React project
 * [ ] Install Tailwind CSS
 * [ ] Configure Tailwind theme (colors, fonts)
 * [ ] Set up ESLint + Prettier
 * [ ] Create basic folder structure (`components`, `pages`, `hooks`, etc.)
-* [ ] Add README.md (project overview, MVP scope)
-* [ ] Add TODO.md (this file)
+* [/] Add README.md (project overview, MVP scope)
+* [/] Add TODO.md (this file)
 * [ ] Configure environment variables support (`.env`)
 
 ---
