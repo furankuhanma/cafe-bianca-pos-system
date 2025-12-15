@@ -11,26 +11,26 @@ Goal: Build a usable POS system that allows a coffee shop to take orders, store 
 
 * [/] Initialize Git repository
 * [/] Create GitHub repository
-* [ ] Set up Vite + React project
-* [ ] Install Tailwind CSS
-* [ ] Configure Tailwind theme (colors, fonts)
-* [ ] Set up ESLint + Prettier
-* [ ] Create basic folder structure (`components`, `pages`, `hooks`, etc.)
+* [/] Set up Vite + React project
+* [/] Install Tailwind CSS
+* [/] Configure Tailwind theme (colors, fonts)
+* [/] Set up ESLint + Prettier
+* [/] Create basic folder structure (`components`, `pages`, `hooks`, etc.)
 * [/] Add README.md (project overview, MVP scope)
 * [/] Add TODO.md (this file)
-* [ ] Configure environment variables support (`.env`)
+* [/] Configure environment variables support (`.env`)
 
 ---
 
 ## 2️⃣ Supabase Setup & Configuration
 
-* [ ] Create Supabase project
-* [ ] Get Supabase URL and anon key
-* [ ] Configure `supabase.js` client
-* [ ] Test Supabase connection from frontend
-* [ ] Enable Row Level Security (RLS)
-* [ ] Set temporary public access for MVP
-* [ ] Create development and production environments
+* [/] Create Supabase project
+* [/] Get Supabase URL and anon key
+* [/] Configure `supabase.js` client
+* [/] Test Supabase connection from frontend
+* [/] Enable Row Level Security (RLS)
+* [/] Set temporary public access for MVP
+* [/] Create development and production environments
 
 ---
 
