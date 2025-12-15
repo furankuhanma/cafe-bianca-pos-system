@@ -29,7 +29,7 @@ export const handleSupabaseError = (error: PostgrestError | null) => {
 
 export const testConnection = async (): Promise<boolean> => {
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('categories')
       .select('count')
       .limit(1);
