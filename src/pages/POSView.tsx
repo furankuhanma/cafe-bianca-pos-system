@@ -137,15 +137,7 @@ export function POSView() {
                 </svg>
               </button>
               <div>
-                <div className="flex items-center gap-1 text-sm text-gray-600">
-                  <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                    <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                  </svg>
-                  <span>Indoor, 6</span>
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </div>
+                
               </div>
             </div>
             <button className="p-2">
@@ -230,7 +222,7 @@ export function POSView() {
                   key={product.id}
                   className="bg-white rounded-2xl overflow-hidden shadow-sm"
                 >
-                  <div className="aspect-square relative bg-gray-100">
+                  <div className="aspect-square relative bg-gray-300">
                     {product.image ? (
                       <img
                         src={product.image}
@@ -321,12 +313,6 @@ export function POSView() {
                 <button onClick={() => setShowCart(false)} className="p-2">
                   <X className="w-6 h-6" />
                 </button>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-gray-600">
-                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 0 100-4 2 2 0 000 4z" clipRule="evenodd" />
-                </svg>
-                <span>Indoor, 6</span>
               </div>
             </div>
 
