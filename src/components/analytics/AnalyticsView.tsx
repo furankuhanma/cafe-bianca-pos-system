@@ -82,8 +82,9 @@ export function Analytics() {
       setLoading(true);
       const { start, end } = getDateRange();
 
+      // Only fetch completed orders for analytics
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(*))&created_at=gte.${start.toISOString()}&created_at=lte.${end.toISOString()}&order=created_at.asc`,
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(*))&created_at=gte.${start.toISOString()}&created_at=lte.${end.toISOString()}&status=eq.completed&order=created_at.asc`,
         {
           headers: {
             'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
@@ -95,7 +96,7 @@ export function Analytics() {
       if (!response.ok) throw new Error('Failed to fetch analytics');
       const orders: OrderData[] = await response.json();
 
-      // Calculate analytics
+      // Calculate analytics (only from completed orders)
       const totalSales = orders.reduce((sum, order) => sum + order.total_amount, 0);
       const totalOrders = orders.length;
       const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Trash2, Eye, AlertCircle, ShoppingBag, X } from 'lucide-react';
+import { Trash2, Eye, AlertCircle, ShoppingBag, X, Wallet, Smartphone } from 'lucide-react';
 
 // Simple date formatter
 const formatDate = (dateString: string) => {
@@ -37,6 +37,7 @@ interface Order {
   customer_name: string | null;
   total_amount: number;
   status: 'pending' | 'completed' | 'cancelled';
+  payment_method: 'cash' | 'gcash' | null;
   created_at: string;
 }
 
@@ -60,7 +61,6 @@ export function OrderHistory() {
       setLoading(true);
       setError(null);
 
-      // Create a simple fetch using window.fetch with Supabase REST API
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(*))&order=created_at.desc&limit=50`,
         {
@@ -103,14 +103,12 @@ export function OrderHistory() {
 
       if (!response.ok) throw new Error('Failed to update order status');
 
-      // Update local state
       setOrders(orders.map(o => 
         o.id === orderId 
           ? { ...o, status: newStatus } 
           : o
       ));
 
-      // Update selected order if it's the one being changed
       if (selectedOrder?.id === orderId) {
         setSelectedOrder({ ...selectedOrder, status: newStatus });
       }
@@ -122,7 +120,6 @@ export function OrderHistory() {
 
   const handleDelete = async (orderId: string) => {
     try {
-      // Delete order items first
       await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/order_items?order_id=eq.${orderId}`,
         {
@@ -134,7 +131,6 @@ export function OrderHistory() {
         }
       );
 
-      // Delete order
       const response = await fetch(
         `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
         {
@@ -170,6 +166,20 @@ export function OrderHistory() {
       default:
         return 'bg-gray-100 text-gray-800';
     }
+  };
+
+  const getPaymentIcon = (method: 'cash' | 'gcash' | null) => {
+    if (method === 'gcash') {
+      return <Smartphone className="w-4 h-4 text-blue-600" />;
+    }
+    return <Wallet className="w-4 h-4 text-green-600" />;
+  };
+
+  const getPaymentColor = (method: 'cash' | 'gcash' | null) => {
+    if (method === 'gcash') {
+      return 'bg-blue-50 text-blue-700 border-blue-200';
+    }
+    return 'bg-green-50 text-green-700 border-green-200';
   };
 
   if (loading) {
@@ -218,18 +228,27 @@ export function OrderHistory() {
                     {formatDate(order.created_at)}
                   </p>
                 </div>
-                <select
-                  value={order.status}
-                  onChange={(e) => handleStatusChange(order.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
-                  className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
-                    order.status
-                  )}`}
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  <option value="pending">pending</option>
-                  <option value="completed">completed</option>
-                  <option value="cancelled">cancelled</option>
-                </select>
+                <div className="flex items-center gap-2">
+                  {/* Payment Method Badge */}
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getPaymentColor(order.payment_method)}`}>
+                    {getPaymentIcon(order.payment_method)}
+                    <span>{order.payment_method === 'gcash' ? 'GCash' : 'Cash'}</span>
+                  </div>
+                  
+                  {/* Status Dropdown */}
+                  <select
+                    value={order.status}
+                    onChange={(e) => handleStatusChange(order.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
+                    className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
+                      order.status
+                    )}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <option value="pending">pending</option>
+                    <option value="completed">completed</option>
+                    <option value="cancelled">cancelled</option>
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-between mt-3">
@@ -288,6 +307,16 @@ export function OrderHistory() {
                 <p className="font-medium">
                   {formatDate(selectedOrder.created_at)}
                 </p>
+              </div>
+
+              <div className="mb-4">
+                <p className="text-sm text-gray-600 mb-2">Payment Method</p>
+                <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-lg border ${getPaymentColor(selectedOrder.payment_method)}`}>
+                  {getPaymentIcon(selectedOrder.payment_method)}
+                  <span className="font-medium">
+                    {selectedOrder.payment_method === 'gcash' ? 'GCash' : 'Cash'}
+                  </span>
+                </div>
               </div>
 
               <div className="mb-4">
