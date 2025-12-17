@@ -82,6 +82,44 @@ export function OrderHistory() {
     }
   };
 
+  const handleStatusChange = async (orderId: string, newStatus: 'pending' | 'completed' | 'cancelled') => {
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
+            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
+            'Content-Type': 'application/json',
+            'Prefer': 'return=representation',
+          },
+          body: JSON.stringify({ 
+            status: newStatus,
+            completed_at: newStatus === 'completed' ? new Date().toISOString() : null
+          }),
+        }
+      );
+
+      if (!response.ok) throw new Error('Failed to update order status');
+
+      // Update local state
+      setOrders(orders.map(o => 
+        o.id === orderId 
+          ? { ...o, status: newStatus } 
+          : o
+      ));
+
+      // Update selected order if it's the one being changed
+      if (selectedOrder?.id === orderId) {
+        setSelectedOrder({ ...selectedOrder, status: newStatus });
+      }
+    } catch (err) {
+      console.error('Error updating order status:', err);
+      alert('Failed to update order status. Please try again.');
+    }
+  };
+
   const handleDelete = async (orderId: string) => {
     try {
       // Delete order items first
@@ -180,13 +218,18 @@ export function OrderHistory() {
                     {formatDate(order.created_at)}
                   </p>
                 </div>
-                <span
-                  className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(
+                <select
+                  value={order.status}
+                  onChange={(e) => handleStatusChange(order.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
+                  className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
                     order.status
                   )}`}
+                  onClick={(e) => e.stopPropagation()}
                 >
-                  {order.status}
-                </span>
+                  <option value="pending">pending</option>
+                  <option value="completed">completed</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
               </div>
 
               <div className="flex items-center justify-between mt-3">
@@ -249,13 +292,17 @@ export function OrderHistory() {
 
               <div className="mb-4">
                 <p className="text-sm text-gray-600 mb-1">Status</p>
-                <span
-                  className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(
+                <select
+                  value={selectedOrder.status}
+                  onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
+                  className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
                     selectedOrder.status
                   )}`}
                 >
-                  {selectedOrder.status}
-                </span>
+                  <option value="pending">pending</option>
+                  <option value="completed">completed</option>
+                  <option value="cancelled">cancelled</option>
+                </select>
               </div>
 
               {selectedOrder.customer_name && (
