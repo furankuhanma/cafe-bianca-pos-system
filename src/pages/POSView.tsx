@@ -1,6 +1,6 @@
 // src/pages/POSView.tsx
 import { useState } from 'react';
-import { ShoppingCart, Search, X, Minus, Plus, Trash2 } from 'lucide-react';
+import { ShoppingCart, Search, X, Minus, Plus, Trash2, Wallet, Smartphone } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { useCart } from '../context/CartContext';
@@ -35,6 +35,7 @@ export function POSView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'gcash'>('cash');
 
 
   const filteredProducts = products.filter(product => {
@@ -56,7 +57,7 @@ export function POSView() {
         .insert({
           total_amount: totalAmount,
           status: 'pending',
-          payment_method: 'cash',
+          payment_method: paymentMethod,
           customer_name: notes || null,
         })
         .select()
@@ -86,6 +87,7 @@ export function POSView() {
 
       clearCart();
       setShowCart(false);
+      setPaymentMethod('cash'); // Reset to default
     } catch (error) {
       console.error('Error creating order:', error);
       alert('Failed to create order. Please try again.');
@@ -362,6 +364,41 @@ export function POSView() {
                   rows={2}
                 />
               </div>
+
+              {/* Payment Method Section */}
+              <div className="mt-4">
+                <label className="block text-sm font-medium text-gray-700 mb-3">
+                  Payment Method
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setPaymentMethod('cash')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'cash'
+                        ? 'border-gray-900 bg-gray-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Wallet className={`w-8 h-8 mb-2 ${paymentMethod === 'cash' ? 'text-gray-900' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'cash' ? 'text-gray-900' : 'text-gray-600'}`}>
+                      Cash
+                    </span>
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('gcash')}
+                    className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all ${
+                      paymentMethod === 'gcash'
+                        ? 'border-blue-600 bg-blue-50'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <Smartphone className={`w-8 h-8 mb-2 ${paymentMethod === 'gcash' ? 'text-blue-600' : 'text-gray-400'}`} />
+                    <span className={`text-sm font-medium ${paymentMethod === 'gcash' ? 'text-blue-600' : 'text-gray-600'}`}>
+                      GCash
+                    </span>
+                  </button>
+                </div>
+              </div>
             </div>
 
             {/* Cart Footer */}
@@ -385,7 +422,7 @@ export function POSView() {
                 disabled={isSubmitting}
                 className="w-full bg-gray-900 text-white py-3.5 rounded-full font-semibold hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
               >
-                {isSubmitting ? 'Processing...' : 'Order Now!'}
+                {isSubmitting ? 'Processing...' : `Pay with ${paymentMethod === 'cash' ? 'Cash' : 'GCash'}`}
               </button>
             </div>
           </div>
