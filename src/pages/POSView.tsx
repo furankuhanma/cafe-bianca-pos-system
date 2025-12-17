@@ -1,9 +1,13 @@
+// src/pages/POSView.tsx
 import { useState } from 'react';
-import { ShoppingCart, Search, X, Minus, Plus, Trash2 } from 'lucide-react';
+import { ShoppingCart, Search, X, Minus, Plus, Trash2, Menu } from 'lucide-react';
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { useCart } from '../context/CartContext';
 import { supabase } from '../lib/supabase';
+import { Sidebar } from '../components/layout/Sidebar';
+import { OrderHistory } from '../components/orders/OrderHistory';
+import { Analytics } from '../components/analytics/Analytics';
 
 export function POSView() {
   const {
@@ -33,6 +37,8 @@ export function POSView() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [orderSuccess, setOrderSuccess] = useState(false);
   const [showCart, setShowCart] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarTab, setSidebarTab] = useState<'orders' | 'analytics'>('orders');
 
   const filteredProducts = products.filter(product => {
     const matchesSearch = product.name
@@ -126,18 +132,29 @@ export function POSView() {
 
   return (
     <div className="min-h-screen bg-gray-100">
+      {/* Sidebar */}
+      <Sidebar
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        activeTab={sidebarTab}
+        onTabChange={setSidebarTab}
+      >
+        {sidebarTab === 'orders' ? <OrderHistory /> : <Analytics />}
+      </Sidebar>
+
       {/* Header */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-20">
         <div className="px-4 py-3">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <button className="p-2">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-                </svg>
+              <button 
+                onClick={() => setSidebarOpen(true)}
+                className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                <Menu className="w-6 h-6" />
               </button>
               <div>
-                
+                <h1 className="font-bold text-gray-900">Cafe Bianca</h1>
               </div>
             </div>
             <button className="p-2">
