@@ -1,11 +1,10 @@
-// src/components/layout/DashboardLayout.tsx
 import { useState } from 'react';
-import { Menu, X, ShoppingBag, BarChart3, Coffee } from 'lucide-react';
+import { Menu, X, ShoppingBag, BarChart3, Coffee, Settings } from 'lucide-react';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
-  currentView: 'pos' | 'orders' | 'analytics';
-  onViewChange: (view: 'pos' | 'orders' | 'analytics') => void;
+  currentView: 'pos' | 'orders' | 'analytics' | 'manage';
+  onViewChange: (view: 'pos' | 'orders' | 'analytics' | 'manage') => void;
 }
 
 export function DashboardLayout({ children, currentView, onViewChange }: DashboardLayoutProps) {
@@ -15,6 +14,7 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
     { id: 'pos' as const, label: 'POS', icon: Coffee },
     { id: 'orders' as const, label: 'Orders', icon: ShoppingBag },
     { id: 'analytics' as const, label: 'Analytics', icon: BarChart3 },
+    { id: 'manage' as const, label: 'Manage', icon: Settings },
   ];
 
   return (
@@ -27,7 +27,7 @@ export function DashboardLayout({ children, currentView, onViewChange }: Dashboa
         />
       )}
 
-      {/* SIDEBAR - Navigation Only */}
+      {/* SIDEBAR */}
       <aside
         className={`
           fixed lg:static inset-y-0 left-0 z-50
