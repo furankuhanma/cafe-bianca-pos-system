@@ -36,6 +36,8 @@ export function ManageView() {
   const [deleteConfirm, setDeleteConfirm] = useState<{ type: 'product' | 'category'; id: string } | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   const [productForm, setProductForm] = useState({
     name: '',
@@ -129,7 +131,25 @@ export function ManageView() {
     }
   };
 
-  const handleSaveProduct = async () => {
+  const handleSaveProduct = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    // Validation
+    if (!productForm.name.trim()) {
+      setSaveError('Product name is required');
+      return;
+    }
+
+    if (!productForm.price || parseFloat(productForm.price) <= 0) {
+      setSaveError('Valid price is required');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
     try {
       let imageUrl = editingProduct?.image_url || null;
       
@@ -138,13 +158,15 @@ export function ManageView() {
       }
 
       const productData = {
-        name: productForm.name,
+        name: productForm.name.trim(),
         price: parseFloat(productForm.price),
         category_id: productForm.category_id || null,
-        description: productForm.description || null,
+        description: productForm.description.trim() || null,
         image_url: imageUrl,
         is_available: productForm.is_available,
       };
+
+      console.log('Saving product:', productData);
 
       const url = editingProduct
         ? `${SUPABASE_URL}/rest/v1/products?id=eq.${editingProduct.id}`
@@ -161,13 +183,21 @@ export function ManageView() {
         body: JSON.stringify(productData),
       });
 
-      if (response.ok) {
-        await fetchProducts();
-        closeProductModal();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save product');
       }
+
+      const savedProduct = await response.json();
+      console.log('Product saved successfully:', savedProduct);
+
+      await fetchProducts();
+      closeProductModal();
     } catch (error) {
       console.error('Error saving product:', error);
-      alert('Failed to save product');
+      setSaveError(error instanceof Error ? error.message : 'Failed to save product');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -187,21 +217,37 @@ export function ManageView() {
       if (response.ok) {
         await fetchProducts();
         setDeleteConfirm(null);
+  
       }
     } catch (error) {
       console.error('Error deleting product:', error);
-      alert('Failed to delete product');
+
     }
   };
 
-  const handleSaveCategory = async () => {
+  const handleSaveCategory = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    // Validation
+    if (!categoryForm.name.trim()) {
+      setSaveError('Category name is required');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
     try {
       const categoryData = {
-        name: categoryForm.name,
-        description: categoryForm.description || null,
-        display_order: parseInt(categoryForm.display_order),
+        name: categoryForm.name.trim(),
+        description: categoryForm.description.trim() || null,
+        display_order: parseInt(categoryForm.display_order) || 0,
         is_active: categoryForm.is_active,
       };
+
+      console.log('Saving category:', categoryData);
 
       const url = editingCategory
         ? `${SUPABASE_URL}/rest/v1/categories?id=eq.${editingCategory.id}`
@@ -218,13 +264,22 @@ export function ManageView() {
         body: JSON.stringify(categoryData),
       });
 
-      if (response.ok) {
-        await fetchCategories();
-        closeCategoryModal();
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || 'Failed to save category');
       }
+
+      const savedCategory = await response.json();
+      console.log('Category saved successfully:', savedCategory);
+
+      await fetchCategories();
+      closeCategoryModal();
+
     } catch (error) {
       console.error('Error saving category:', error);
-      alert('Failed to save category');
+      setSaveError(error instanceof Error ? error.message : 'Failed to save category');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -232,7 +287,7 @@ export function ManageView() {
     try {
       const productsInCategory = products.filter(p => p.category_id === id);
       if (productsInCategory.length > 0) {
-        alert(`Cannot delete category with ${productsInCategory.length} products. Please reassign or delete products first.`);
+     
         return;
       }
 
@@ -250,14 +305,16 @@ export function ManageView() {
       if (response.ok) {
         await fetchCategories();
         setDeleteConfirm(null);
+     
       }
     } catch (error) {
       console.error('Error deleting category:', error);
-      alert('Failed to delete category');
+   
     }
   };
 
   const openProductModal = (product?: Product) => {
+    setSaveError(null);
     if (product) {
       setEditingProduct(product);
       setProductForm({
@@ -288,9 +345,11 @@ export function ManageView() {
     setEditingProduct(null);
     setImagePreview(null);
     setImageFile(null);
+    setSaveError(null);
   };
 
   const openCategoryModal = (category?: Category) => {
+    setSaveError(null);
     if (category) {
       setEditingCategory(category);
       setCategoryForm({
@@ -314,6 +373,7 @@ export function ManageView() {
   const closeCategoryModal = () => {
     setShowCategoryModal(false);
     setEditingCategory(null);
+    setSaveError(null);
   };
 
   const getCategoryName = (categoryId: string | null) => {
@@ -489,7 +549,14 @@ export function ManageView() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                  <AlertCircle size={20} />
+                  <span className="text-sm">{saveError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
                 <div className="flex gap-4">
@@ -528,6 +595,7 @@ export function ManageView() {
                   onChange={e => setProductForm({ ...productForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   placeholder="e.g., Cappuccino"
+                  required
                 />
               </div>
 
@@ -536,10 +604,12 @@ export function ManageView() {
                 <input
                   type="number"
                   step="0.01"
+                  min="0.01"
                   value={productForm.price}
                   onChange={e => setProductForm({ ...productForm, price: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   placeholder="0.00"
+                  required
                 />
               </div>
 
@@ -577,24 +647,26 @@ export function ManageView() {
                 />
                 <label className="text-sm font-medium text-gray-700">Available for sale</label>
               </div>
-            </div>
 
-            <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 flex gap-3">
-              <button
-                onClick={closeProductModal}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveProduct}
-                disabled={!productForm.name || !productForm.price}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
-              >
-                <Save size={20} />
-                Save Product
-              </button>
-            </div>
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeProductModal}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || !productForm.name.trim() || !productForm.price}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save size={20} />
+                  {isSaving ? 'Saving...' : 'Save Product'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
@@ -610,7 +682,14 @@ export function ManageView() {
               </button>
             </div>
 
-            <div className="p-6 space-y-4">
+            <form onSubmit={handleSaveCategory} className="p-6 space-y-4">
+              {saveError && (
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
+                  <AlertCircle size={20} />
+                  <span className="text-sm">{saveError}</span>
+                </div>
+              )}
+
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Name *</label>
                 <input
@@ -619,6 +698,7 @@ export function ManageView() {
                   onChange={e => setCategoryForm({ ...categoryForm, name: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
                   placeholder="e.g., Hot Drinks"
+                  required
                 />
               </div>
 
@@ -637,6 +717,7 @@ export function ManageView() {
                 <label className="block text-sm font-medium text-gray-700 mb-2">Display Order</label>
                 <input
                   type="number"
+                  min="0"
                   value={categoryForm.display_order}
                   onChange={e => setCategoryForm({ ...categoryForm, display_order: e.target.value })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-gray-900"
@@ -652,24 +733,26 @@ export function ManageView() {
                 />
                 <label className="text-sm font-medium text-gray-700">Active</label>
               </div>
-            </div>
 
-            <div className="border-t border-gray-200 px-6 py-4 flex gap-3">
-              <button
-                onClick={closeCategoryModal}
-                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleSaveCategory}
-                disabled={!categoryForm.name}
-                className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 transition-colors"
-              >
-                <Save size={20} />
-                Save Category
-              </button>
-            </div>
+              <div className="border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex gap-3">
+                <button
+                  type="button"
+                  onClick={closeCategoryModal}
+                  className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                  disabled={isSaving}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSaving || !categoryForm.name.trim()}
+                  className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
+                >
+                  <Save size={20} />
+                  {isSaving ? 'Saving...' : 'Save Category'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
