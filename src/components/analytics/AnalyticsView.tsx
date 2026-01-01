@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { TrendingUp, ShoppingCart, DollarSign, Package, Calendar } from 'lucide-react';
+import { TrendingUp, ShoppingCart, DollarSign, Package, Calendar, X } from 'lucide-react';
 
 // Simple date formatter
 const formatDate = (dateString: string) => {
@@ -36,6 +36,9 @@ export function Analytics() {
   const [period, setPeriod] = useState<FilterPeriod>('week');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
+  const [tempStartDate, setTempStartDate] = useState('');
+  const [tempEndDate, setTempEndDate] = useState('');
+  const [showCustomModal, setShowCustomModal] = useState(false);
   const [analytics, setAnalytics] = useState<AnalyticsData>({
     totalSales: 0,
     totalOrders: 0,
@@ -48,6 +51,23 @@ export function Analytics() {
   useEffect(() => {
     fetchAnalytics();
   }, [period, startDate, endDate]);
+
+  const handleOpenCustomModal = () => {
+    setTempStartDate(startDate);
+    setTempEndDate(endDate);
+    setShowCustomModal(true);
+  };
+
+  const handleApplyCustomDates = () => {
+    setStartDate(tempStartDate);
+    setEndDate(tempEndDate);
+    setPeriod('custom');
+    setShowCustomModal(false);
+  };
+
+  const handleCancelCustomDates = () => {
+    setShowCustomModal(false);
+  };
 
   const getDateRange = () => {
     const now = new Date();
@@ -132,7 +152,7 @@ export function Analytics() {
 
       const salesByDay = Array.from(salesMap.entries())
         .map(([date, amount]) => ({ date, amount }))
-        .slice(-7); // Last 7 days
+        .slice(-7);
 
       setAnalytics({
         totalSales,
@@ -151,7 +171,7 @@ export function Analytics() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600" />
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -169,7 +189,7 @@ export function Analytics() {
               onClick={() => setPeriod(p)}
               className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
                 period === p
-                  ? 'bg-primary-600 text-white'
+                  ? 'bg-blue-600 text-white'
                   : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
               }`}
             >
@@ -177,10 +197,10 @@ export function Analytics() {
             </button>
           ))}
           <button
-            onClick={() => setPeriod('custom')}
+            onClick={handleOpenCustomModal}
             className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
               period === 'custom'
-                ? 'bg-primary-600 text-white'
+                ? 'bg-blue-600 text-white'
                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
             }`}
           >
@@ -188,28 +208,70 @@ export function Analytics() {
             Custom
           </button>
         </div>
-
-        {period === 'custom' && (
-          <div className="flex gap-2">
-            <input
-              type="date"
-              value={startDate}
-              onChange={e => setStartDate(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
-            />
-            <input
-              type="date"
-              value={endDate}
-              onChange={e => setEndDate(e.target.value)}
-              className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-primary-600"
-            />
-          </div>
-        )}
       </div>
+
+      {/* Custom Date Modal */}
+      {showCustomModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl shadow-xl max-w-md w-full">
+            <div className="flex items-center justify-between p-4 border-b border-gray-200">
+              <h3 className="text-lg font-semibold text-gray-800">Select Date Range</h3>
+              <button
+                onClick={handleCancelCustomDates}
+                className="text-gray-400 hover:text-gray-600 transition-colors"
+              >
+                <X size={20} />
+              </button>
+            </div>
+            
+            <div className="p-4 space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Start Date
+                </label>
+                <input
+                  type="date"
+                  value={tempStartDate}
+                  onChange={e => setTempStartDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  End Date
+                </label>
+                <input
+                  type="date"
+                  value={tempEndDate}
+                  onChange={e => setTempEndDate(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-600"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-2 p-4 border-t border-gray-200">
+              <button
+                onClick={handleCancelCustomDates}
+                className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-200 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleApplyCustomDates}
+                disabled={!tempStartDate || !tempEndDate}
+                className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Apply
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 gap-3 mb-6">
-        <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-xl p-4 text-white">
+        <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white">
           <div className="flex items-center gap-2 mb-2">
             <DollarSign size={20} />
             <span className="text-sm opacity-90">Total Sales</span>
@@ -217,7 +279,7 @@ export function Analytics() {
           <p className="text-2xl font-bold">${analytics.totalSales.toFixed(2)}</p>
         </div>
 
-        <div className="bg-gradient-to-br from-accent-500 to-accent-600 rounded-xl p-4 text-white">
+        <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white">
           <div className="flex items-center gap-2 mb-2">
             <ShoppingCart size={20} />
             <span className="text-sm opacity-90">Orders</span>
@@ -252,7 +314,7 @@ export function Analytics() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className="bg-primary-600 h-2 rounded-full transition-all duration-500"
+                    className="bg-blue-600 h-2 rounded-full transition-all duration-500"
                     style={{ width: `${(day.amount / maxSales) * 100}%` }}
                   />
                 </div>
@@ -283,7 +345,7 @@ export function Analytics() {
                   </p>
                   <p className="text-xs text-gray-500">{product.quantity} sold</p>
                 </div>
-                <p className="font-bold text-primary-600">
+                <p className="font-bold text-blue-600">
                   ${product.revenue.toFixed(2)}
                 </p>
               </div>
