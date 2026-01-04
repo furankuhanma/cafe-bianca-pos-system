@@ -12,14 +12,6 @@ import {
   deleteCategory
 } from '../../lib/database';
 
-// Keep all your existing interfaces (Category, Product) - they're fine!
-
-// REMOVE these old constants:
-// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-// Keep everything else from line ~30 onwards for now...
-
 interface Category {
   id: string;
   name: string;
@@ -40,7 +32,45 @@ interface Product {
   created_at: string;
 }
 
+// Add this new function for image compression
+const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target?.result as string;
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        let width = img.width;
+        let height = img.height;
 
+        // Calculate new dimensions
+        if (width > maxWidth) {
+          height = (height * maxWidth) / width;
+          width = maxWidth;
+        }
+
+        canvas.width = width;
+        canvas.height = height;
+
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          reject(new Error('Failed to get canvas context'));
+          return;
+        }
+
+        ctx.drawImage(img, 0, 0, width, height);
+        
+        // Convert to base64 with compression
+        const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
+        resolve(compressedBase64);
+      };
+      img.onerror = () => reject(new Error('Failed to load image'));
+    };
+    reader.onerror = () => reject(new Error('Failed to read file'));
+  });
+};
 
 export function ManageView() {
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
@@ -78,7 +108,7 @@ export function ManageView() {
 
   const fetchProducts = async () => {
     try {
-      const data = await getAllProducts(true); // true = include unavailable
+      const data = await getAllProducts(true);
       setProducts(data.map(p => ({
         ...p,
         is_available: p.is_available === 1
@@ -108,137 +138,147 @@ export function ManageView() {
   };
 
   const handleSaveProduct = async (e?: React.FormEvent) => {
-        if (e) {
-          e.preventDefault();
-        }
+    if (e) {
+      e.preventDefault();
+    }
 
-        // Validation
-        if (!productForm.name.trim()) {
-          setSaveError('Product name is required');
-          return;
-        }
+    if (!productForm.name.trim()) {
+      setSaveError('Product name is required');
+      return;
+    }
 
-        if (!productForm.price || parseFloat(productForm.price) <= 0) {
-          setSaveError('Valid price is required');
-          return;
-        }
+    if (!productForm.price || parseFloat(productForm.price) <= 0) {
+      setSaveError('Valid price is required');
+      return;
+    }
 
-        setIsSaving(true);
-        setSaveError(null);
+    setIsSaving(true);
+    setSaveError(null);
 
-        try {
-          let imageUrl = editingProduct?.image_url || null;
-          
-          if (imageFile) {
-            imageUrl = await uploadImage(imageFile);
-          }
+    try {
+      let imageUrl = editingProduct?.image_url || null;
+      
+      if (imageFile) {
+        // Compress image before uploading
+        imageUrl = await uploadImage(imageFile);
+      }
 
-          const productData = {
-            name: productForm.name.trim(),
-            price: parseFloat(productForm.price),
-            category_id: productForm.category_id || undefined,
-            description: productForm.description.trim() || undefined,
-            image_url: imageUrl || undefined,
-            is_available: productForm.is_available,
-          };
-
-          if (editingProduct) {
-            await updateProduct(editingProduct.id, productData);
-          } else {
-            await createProduct(productData);
-          }
-
-          await fetchProducts();
-          closeProductModal();
-        } catch (error) {
-          console.error('Error saving product:', error);
-          setSaveError(error instanceof Error ? error.message : 'Failed to save product');
-        } finally {
-          setIsSaving(false);
-        }
+      const productData = {
+        name: productForm.name.trim(),
+        price: parseFloat(productForm.price),
+        category_id: productForm.category_id || undefined,
+        description: productForm.description.trim() || undefined,
+        image_url: imageUrl || undefined,
+        is_available: productForm.is_available,
       };
 
-      const handleDeleteProduct = async (id: string) => {
-        try {
-          await deleteProduct(id);
-          await fetchProducts();
-          setDeleteConfirm(null);
-        } catch (error) {
-          console.error('Error deleting product:', error);
-        }
+      if (editingProduct) {
+        await updateProduct(editingProduct.id, productData);
+      } else {
+        await createProduct(productData);
+      }
+
+      await fetchProducts();
+      closeProductModal();
+    } catch (error) {
+      console.error('Error saving product:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save product');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    try {
+      await deleteProduct(id);
+      await fetchProducts();
+      setDeleteConfirm(null);
+    } catch (error) {
+      console.error('Error deleting product:', error);
+    }
+  };
+
+  const handleSaveCategory = async (e?: React.FormEvent) => {
+    if (e) {
+      e.preventDefault();
+    }
+
+    if (!categoryForm.name.trim()) {
+      setSaveError('Category name is required');
+      return;
+    }
+
+    setIsSaving(true);
+    setSaveError(null);
+
+    try {
+      const categoryData = {
+        name: categoryForm.name.trim(),
+        description: categoryForm.description.trim() || undefined,
+        display_order: parseInt(categoryForm.display_order) || 0,
+        is_active: categoryForm.is_active,
       };
 
-      const handleSaveCategory = async (e?: React.FormEvent) => {
-        if (e) {
-          e.preventDefault();
-        }
+      if (editingCategory) {
+        await updateCategory(editingCategory.id, categoryData);
+      } else {
+        await createCategory(categoryData);
+      }
 
-        // Validation
-        if (!categoryForm.name.trim()) {
-          setSaveError('Category name is required');
-          return;
-        }
+      await fetchCategories();
+      closeCategoryModal();
+    } catch (error) {
+      console.error('Error saving category:', error);
+      setSaveError(error instanceof Error ? error.message : 'Failed to save category');
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
-        setIsSaving(true);
-        setSaveError(null);
-
-        try {
-          const categoryData = {
-            name: categoryForm.name.trim(),
-            description: categoryForm.description.trim() || undefined,
-            display_order: parseInt(categoryForm.display_order) || 0,
-            is_active: categoryForm.is_active,
-          };
-
-          if (editingCategory) {
-            await updateCategory(editingCategory.id, categoryData);
-          } else {
-            await createCategory(categoryData);
-          }
-
-          await fetchCategories();
-          closeCategoryModal();
-        } catch (error) {
-          console.error('Error saving category:', error);
-          setSaveError(error instanceof Error ? error.message : 'Failed to save category');
-        } finally {
-          setIsSaving(false);
-        }
-      };
-
-
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      // Check file size (e.g., limit to 5MB before compression)
+      if (file.size > 5 * 1024 * 1024) {
+        setSaveError('Image file is too large. Please choose a file under 5MB.');
+        return;
+      }
+
       setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      
+      try {
+        // Create preview using compressed version
+        const compressed = await compressImage(file, 800, 0.7);
+        setImagePreview(compressed);
+      } catch (error) {
+        console.error('Error processing image:', error);
+        setSaveError('Failed to process image. Please try another file.');
+      }
     }
   };
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      return base64;
+      // Compress image: max width 800px, quality 70%
+      const compressedBase64 = await compressImage(file, 800, 0.7);
+      
+      // Check compressed size (base64 is ~1.37x the actual size)
+      const sizeInBytes = (compressedBase64.length * 3) / 4;
+      const sizeInKB = sizeInBytes / 1024;
+      
+      console.log(`Compressed image size: ${sizeInKB.toFixed(2)} KB`);
+      
+      // Warn if still large (though much better than before)
+      if (sizeInKB > 500) {
+        console.warn('Compressed image is still quite large. Consider reducing quality further.');
+      }
+      
+      return compressedBase64;
     } catch (error) {
       console.error('Error uploading image:', error);
-      return null;
+      throw new Error('Failed to process image');
     }
   };
-
-
-
-
-
 
   const openProductModal = (product?: Product) => {
     setSaveError(null);
@@ -509,7 +549,7 @@ export function ManageView() {
                       <Upload size={20} />
                       Upload Image
                     </label>
-                    <p className="text-xs text-gray-500 mt-2">PNG, JPG up to 5MB</p>
+                    <p className="text-xs text-gray-500 mt-2">PNG, JPG up to 5MB (will be compressed)</p>
                   </div>
                 </div>
               </div>
