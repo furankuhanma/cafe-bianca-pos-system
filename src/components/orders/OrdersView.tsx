@@ -172,20 +172,22 @@ export function OrderHistory() {
           {orders.map(order => (
             <div
               key={order.id}
-              className="bg-gray-50 rounded-lg p-4 hover:bg-gray-100 transition-colors"
+              className="bg-white rounded-xl p-4 shadow-sm border border-gray-200"
             >
-              <div className="flex items-start justify-between mb-2">
-                <div>
-                  <p className="font-semibold text-gray-800">
+              {/* Header Row */}
+              <div className="flex items-start justify-between mb-3 gap-2">
+                <div className="flex-shrink min-w-0">
+                  <p className="font-bold text-gray-900 text-sm truncate">
                     #{order.order_number}
                   </p>
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-gray-500 mt-0.5">
                     {formatDate(order.created_at)}
                   </p>
                 </div>
-                <div className="flex items-center gap-2">
+                
+                <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
                   {/* Payment Method Badge */}
-                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border ${getPaymentColor(order.payment_method)}`}>
+                  <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium border whitespace-nowrap ${getPaymentColor(order.payment_method)}`}>
                     {getPaymentIcon(order.payment_method)}
                     <span>{order.payment_method === 'gcash' ? 'GCash' : 'Cash'}</span>
                   </div>
@@ -194,9 +196,7 @@ export function OrderHistory() {
                   <select
                     value={order.status}
                     onChange={(e) => handleStatusChange(order.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
-                    className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
-                      order.status
-                    )}`}
+                    className={`px-2 py-1 rounded-full text-xs font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 whitespace-nowrap ${getStatusColor(order.status)}`}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <option value="pending">pending</option>
@@ -206,14 +206,15 @@ export function OrderHistory() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between mt-3">
-                <p className="text-lg font-bold text-primary-600">
+              {/* Bottom Row - Price and Actions */}
+              <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                <p className="text-xl font-bold text-gray-900">
                   ${order.total_amount.toFixed(2)}
                 </p>
                 <div className="flex gap-2">
                   <button
                     onClick={() => setSelectedOrder(order)}
-                    className="p-2 text-primary-600 hover:bg-primary-50 rounded-lg transition-colors"
+                    className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
                     title="View Details"
                   >
                     <Eye size={18} />
@@ -279,9 +280,7 @@ export function OrderHistory() {
                 <select
                   value={selectedOrder.status}
                   onChange={(e) => handleStatusChange(selectedOrder.id, e.target.value as 'pending' | 'completed' | 'cancelled')}
-                  className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(
-                    selectedOrder.status
-                  )}`}
+                  className={`px-3 py-1 rounded-full text-sm font-medium border-0 cursor-pointer focus:outline-none focus:ring-2 focus:ring-primary-500 ${getStatusColor(selectedOrder.status)}`}
                 >
                   <option value="pending">pending</option>
                   <option value="completed">completed</option>

@@ -32,7 +32,7 @@ interface Product {
   created_at: string;
 }
 
-// Add this new function for image compression
+// Image compression function
 const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7): Promise<string> => {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -45,7 +45,6 @@ const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7
         let width = img.width;
         let height = img.height;
 
-        // Calculate new dimensions
         if (width > maxWidth) {
           height = (height * maxWidth) / width;
           width = maxWidth;
@@ -61,8 +60,6 @@ const compressImage = (file: File, maxWidth: number = 800, quality: number = 0.7
         }
 
         ctx.drawImage(img, 0, 0, width, height);
-        
-        // Convert to base64 with compression
         const compressedBase64 = canvas.toDataURL('image/jpeg', quality);
         resolve(compressedBase64);
       };
@@ -159,7 +156,6 @@ export function ManageView() {
       let imageUrl = editingProduct?.image_url || null;
       
       if (imageFile) {
-        // Compress image before uploading
         imageUrl = await uploadImage(imageFile);
       }
 
@@ -238,7 +234,6 @@ export function ManageView() {
   const handleImageChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      // Check file size (e.g., limit to 5MB before compression)
       if (file.size > 5 * 1024 * 1024) {
         setSaveError('Image file is too large. Please choose a file under 5MB.');
         return;
@@ -247,7 +242,6 @@ export function ManageView() {
       setImageFile(file);
       
       try {
-        // Create preview using compressed version
         const compressed = await compressImage(file, 800, 0.7);
         setImagePreview(compressed);
       } catch (error) {
@@ -259,18 +253,14 @@ export function ManageView() {
 
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
-      // Compress image: max width 800px, quality 70%
       const compressedBase64 = await compressImage(file, 800, 0.7);
-      
-      // Check compressed size (base64 is ~1.37x the actual size)
       const sizeInBytes = (compressedBase64.length * 3) / 4;
       const sizeInKB = sizeInBytes / 1024;
       
       console.log(`Compressed image size: ${sizeInKB.toFixed(2)} KB`);
       
-      // Warn if still large (though much better than before)
       if (sizeInKB > 500) {
-        console.warn('Compressed image is still quite large. Consider reducing quality further.');
+        console.warn('Compressed image is still quite large.');
       }
       
       return compressedBase64;
@@ -358,12 +348,12 @@ export function ManageView() {
   }
 
   return (
-    <div className="p-6">
+    <div className="p-4 md:p-6">
       {/* Tabs */}
-      <div className="flex gap-2 mb-6">
+      <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
         <button
           onClick={() => setActiveTab('products')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             activeTab === 'products'
               ? 'bg-gray-900 text-white'
               : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -374,7 +364,7 @@ export function ManageView() {
         </button>
         <button
           onClick={() => setActiveTab('categories')}
-          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors ${
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-colors whitespace-nowrap ${
             activeTab === 'categories'
               ? 'bg-gray-900 text-white'
               : 'bg-white text-gray-700 hover:bg-gray-100'
@@ -388,18 +378,18 @@ export function ManageView() {
       {/* Products Tab */}
       {activeTab === 'products' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold">Products</h2>
             <button
               onClick={() => openProductModal()}
-              className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+              className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors whitespace-nowrap"
             >
               <Plus size={20} />
               Add Product
             </button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {products.map(product => (
               <div key={product.id} className="bg-white rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow">
                 <div className="aspect-video bg-gray-200 relative">
@@ -421,23 +411,23 @@ export function ManageView() {
                   </div>
                 </div>
                 <div className="p-4">
-                  <h3 className="font-semibold text-gray-900 mb-1">{product.name}</h3>
+                  <h3 className="font-semibold text-gray-900 mb-1 line-clamp-2">{product.name}</h3>
                   <p className="text-sm text-gray-500 mb-2">{getCategoryName(product.category_id)}</p>
                   <p className="text-lg font-bold text-gray-900 mb-3">${product.price.toFixed(2)}</p>
                   <div className="flex gap-2">
                     <button
                       onClick={() => openProductModal(product)}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors text-sm"
                     >
                       <Edit2 size={16} />
-                      Edit
+                      <span className="hidden sm:inline">Edit</span>
                     </button>
                     <button
                       onClick={() => setDeleteConfirm({ type: 'product', id: product.id })}
-                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors"
+                      className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition-colors text-sm"
                     >
                       <Trash2 size={16} />
-                      Delete
+                      <span className="hidden sm:inline">Delete</span>
                     </button>
                   </div>
                 </div>
@@ -450,11 +440,11 @@ export function ManageView() {
       {/* Categories Tab */}
       {activeTab === 'categories' && (
         <div>
-          <div className="flex justify-between items-center mb-4">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
             <h2 className="text-xl font-semibold">Categories</h2>
             <button
               onClick={() => openCategoryModal()}
-              className="flex items-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors"
+              className="flex items-center justify-center gap-2 bg-gray-900 text-white px-4 py-2 rounded-lg hover:bg-gray-800 transition-colors whitespace-nowrap"
             >
               <Plus size={20} />
               Add Category
@@ -466,24 +456,24 @@ export function ManageView() {
               const productCount = products.filter(p => p.category_id === category.id).length;
               return (
                 <div key={category.id} className="bg-white rounded-lg p-4 shadow-sm hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="font-semibold text-gray-900">{category.name}</h3>
-                        <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-2">
+                        <h3 className="font-semibold text-gray-900 truncate">{category.name}</h3>
+                        <span className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${
                           category.is_active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                         }`}>
                           {category.is_active ? 'Active' : 'Inactive'}
                         </span>
-                        <span className="text-sm text-gray-500">
+                        <span className="text-sm text-gray-500 whitespace-nowrap">
                           {productCount} product{productCount !== 1 ? 's' : ''}
                         </span>
                       </div>
                       {category.description && (
-                        <p className="text-sm text-gray-600">{category.description}</p>
+                        <p className="text-sm text-gray-600 line-clamp-2">{category.description}</p>
                       )}
                     </div>
-                    <div className="flex gap-2 ml-4">
+                    <div className="flex gap-2 flex-shrink-0">
                       <button
                         onClick={() => openCategoryModal(category)}
                         className="p-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
@@ -509,25 +499,25 @@ export function ManageView() {
       {showProductModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={closeProductModal}>
           <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-            <div className="sticky top-0 bg-white border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
+            <div className="sticky top-0 bg-white border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between z-10">
+              <h2 className="text-lg sm:text-xl font-bold">{editingProduct ? 'Edit Product' : 'Add Product'}</h2>
               <button onClick={closeProductModal} className="text-gray-500 hover:text-gray-700">
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveProduct} className="p-6 space-y-4">
+            <form onSubmit={handleSaveProduct} className="p-4 sm:p-6 space-y-4">
               {saveError && (
-                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
-                  <AlertCircle size={20} />
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-start gap-2">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{saveError}</span>
                 </div>
               )}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">Product Image</label>
-                <div className="flex gap-4">
-                  <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center">
+                <div className="flex flex-col sm:flex-row gap-4">
+                  <div className="w-32 h-32 bg-gray-100 rounded-lg overflow-hidden flex items-center justify-center flex-shrink-0">
                     {imagePreview ? (
                       <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
                     ) : (
@@ -615,7 +605,7 @@ export function ManageView() {
                 <label className="text-sm font-medium text-gray-700">Available for sale</label>
               </div>
 
-              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex gap-3">
+              <div className="sticky bottom-0 bg-white border-t border-gray-200 px-4 sm:px-6 py-4 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 flex gap-3">
                 <button
                   type="button"
                   onClick={closeProductModal}
@@ -630,7 +620,7 @@ export function ManageView() {
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   <Save size={20} />
-                  {isSaving ? 'Saving...' : 'Save Product'}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
@@ -642,17 +632,17 @@ export function ManageView() {
       {showCategoryModal && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={closeCategoryModal}>
           <div className="bg-white rounded-xl max-w-lg w-full" onClick={e => e.stopPropagation()}>
-            <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
-              <h2 className="text-xl font-bold">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
+            <div className="border-b border-gray-200 px-4 sm:px-6 py-4 flex items-center justify-between">
+              <h2 className="text-lg sm:text-xl font-bold">{editingCategory ? 'Edit Category' : 'Add Category'}</h2>
               <button onClick={closeCategoryModal} className="text-gray-500 hover:text-gray-700">
                 <X size={24} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveCategory} className="p-6 space-y-4">
+            <form onSubmit={handleSaveCategory} className="p-4 sm:p-6 space-y-4">
               {saveError && (
-                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-center gap-2">
-                  <AlertCircle size={20} />
+                <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg flex items-start gap-2">
+                  <AlertCircle size={20} className="flex-shrink-0 mt-0.5" />
                   <span className="text-sm">{saveError}</span>
                 </div>
               )}
@@ -701,7 +691,7 @@ export function ManageView() {
                 <label className="text-sm font-medium text-gray-700">Active</label>
               </div>
 
-              <div className="border-t border-gray-200 px-6 py-4 -mx-6 -mb-6 flex gap-3">
+              <div className="border-t border-gray-200 px-4 sm:px-6 py-4 -mx-4 sm:-mx-6 -mb-4 sm:-mb-6 flex gap-3">
                 <button
                   type="button"
                   onClick={closeCategoryModal}
@@ -716,7 +706,7 @@ export function ManageView() {
                   className="flex-1 flex items-center justify-center gap-2 px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors"
                 >
                   <Save size={20} />
-                  {isSaving ? 'Saving...' : 'Save Category'}
+                  {isSaving ? 'Saving...' : 'Save'}
                 </button>
               </div>
             </form>
