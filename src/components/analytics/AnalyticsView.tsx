@@ -8,20 +8,6 @@ const formatDate = (dateString: string) => {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 };
 
-interface OrderData {
-  id: string;
-  total_amount: number;
-  created_at: string;
-  status: string;
-  order_items: Array<{
-    product_id: string;
-    quantity: number;
-    price_at_time: number;
-    products: {
-      name: string;
-    };
-  }>;
-}
 
 interface AnalyticsData {
   totalSales: number;
@@ -133,8 +119,7 @@ const fetchAnalytics = async () => {
     const columns = ordersResult[0].columns;
     const rows = ordersResult[0].values;
 
-    // Parse results
-    const orders: any[] = [];
+  
     const orderMap = new Map();
 
     rows.forEach(row => {
