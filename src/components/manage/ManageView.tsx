@@ -1,5 +1,24 @@
 import { useState, useEffect } from 'react';
 import { Plus, Edit2, Trash2, X, Upload, Image as ImageIcon, Package, FolderOpen, Save, AlertCircle } from 'lucide-react';
+import { 
+  initDatabase, 
+  getAllProducts, 
+  getAllCategories,
+  createProduct,
+  updateProduct,
+  deleteProduct,
+  createCategory,
+  updateCategory,
+  deleteCategory
+} from '../../lib/database';
+
+// Keep all your existing interfaces (Category, Product) - they're fine!
+
+// REMOVE these old constants:
+// const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
+// const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+// Keep everything else from line ~30 onwards for now...
 
 interface Category {
   id: string;
@@ -21,8 +40,7 @@ interface Product {
   created_at: string;
 }
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 
 export function ManageView() {
   const [activeTab, setActiveTab] = useState<'products' | 'categories'>('products');
@@ -58,27 +76,13 @@ export function ManageView() {
     fetchData();
   }, []);
 
-  const fetchData = async () => {
-    setLoading(true);
-    await Promise.all([fetchProducts(), fetchCategories()]);
-    setLoading(false);
-  };
-
   const fetchProducts = async () => {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?select=*&order=name`,
-        {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setProducts(data);
-      }
+      const data = await getAllProducts(true); // true = include unavailable
+      setProducts(data.map(p => ({
+        ...p,
+        is_available: p.is_available === 1
+      })));
     } catch (error) {
       console.error('Error fetching products:', error);
     }
@@ -86,23 +90,123 @@ export function ManageView() {
 
   const fetchCategories = async () => {
     try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/categories?select=*&order=display_order`,
-        {
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-      if (response.ok) {
-        const data = await response.json();
-        setCategories(data);
-      }
+      const data = await getAllCategories();
+      setCategories(data.map(c => ({
+        ...c,
+        is_active: c.is_active === 1
+      })));
     } catch (error) {
       console.error('Error fetching categories:', error);
     }
   };
+
+  const fetchData = async () => {
+    setLoading(true);
+    await initDatabase();
+    await Promise.all([fetchProducts(), fetchCategories()]);
+    setLoading(false);
+  };
+
+  const handleSaveProduct = async (e?: React.FormEvent) => {
+        if (e) {
+          e.preventDefault();
+        }
+
+        // Validation
+        if (!productForm.name.trim()) {
+          setSaveError('Product name is required');
+          return;
+        }
+
+        if (!productForm.price || parseFloat(productForm.price) <= 0) {
+          setSaveError('Valid price is required');
+          return;
+        }
+
+        setIsSaving(true);
+        setSaveError(null);
+
+        try {
+          let imageUrl = editingProduct?.image_url || null;
+          
+          if (imageFile) {
+            imageUrl = await uploadImage(imageFile);
+          }
+
+          const productData = {
+            name: productForm.name.trim(),
+            price: parseFloat(productForm.price),
+            category_id: productForm.category_id || undefined,
+            description: productForm.description.trim() || undefined,
+            image_url: imageUrl || undefined,
+            is_available: productForm.is_available,
+          };
+
+          if (editingProduct) {
+            await updateProduct(editingProduct.id, productData);
+          } else {
+            await createProduct(productData);
+          }
+
+          await fetchProducts();
+          closeProductModal();
+        } catch (error) {
+          console.error('Error saving product:', error);
+          setSaveError(error instanceof Error ? error.message : 'Failed to save product');
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+      const handleDeleteProduct = async (id: string) => {
+        try {
+          await deleteProduct(id);
+          await fetchProducts();
+          setDeleteConfirm(null);
+        } catch (error) {
+          console.error('Error deleting product:', error);
+        }
+      };
+
+      const handleSaveCategory = async (e?: React.FormEvent) => {
+        if (e) {
+          e.preventDefault();
+        }
+
+        // Validation
+        if (!categoryForm.name.trim()) {
+          setSaveError('Category name is required');
+          return;
+        }
+
+        setIsSaving(true);
+        setSaveError(null);
+
+        try {
+          const categoryData = {
+            name: categoryForm.name.trim(),
+            description: categoryForm.description.trim() || undefined,
+            display_order: parseInt(categoryForm.display_order) || 0,
+            is_active: categoryForm.is_active,
+          };
+
+          if (editingCategory) {
+            await updateCategory(editingCategory.id, categoryData);
+          } else {
+            await createCategory(categoryData);
+          }
+
+          await fetchCategories();
+          closeCategoryModal();
+        } catch (error) {
+          console.error('Error saving category:', error);
+          setSaveError(error instanceof Error ? error.message : 'Failed to save category');
+        } finally {
+          setIsSaving(false);
+        }
+      };
+
+
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -131,187 +235,10 @@ export function ManageView() {
     }
   };
 
-  const handleSaveProduct = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
 
-    // Validation
-    if (!productForm.name.trim()) {
-      setSaveError('Product name is required');
-      return;
-    }
 
-    if (!productForm.price || parseFloat(productForm.price) <= 0) {
-      setSaveError('Valid price is required');
-      return;
-    }
 
-    setIsSaving(true);
-    setSaveError(null);
 
-    try {
-      let imageUrl = editingProduct?.image_url || null;
-      
-      if (imageFile) {
-        imageUrl = await uploadImage(imageFile);
-      }
-
-      const productData = {
-        name: productForm.name.trim(),
-        price: parseFloat(productForm.price),
-        category_id: productForm.category_id || null,
-        description: productForm.description.trim() || null,
-        image_url: imageUrl,
-        is_available: productForm.is_available,
-      };
-
-      console.log('Saving product:', productData);
-
-      const url = editingProduct
-        ? `${SUPABASE_URL}/rest/v1/products?id=eq.${editingProduct.id}`
-        : `${SUPABASE_URL}/rest/v1/products`;
-
-      const response = await fetch(url, {
-        method: editingProduct ? 'PATCH' : 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(productData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save product');
-      }
-
-      const savedProduct = await response.json();
-      console.log('Product saved successfully:', savedProduct);
-
-      await fetchProducts();
-      closeProductModal();
-    } catch (error) {
-      console.error('Error saving product:', error);
-      setSaveError(error instanceof Error ? error.message : 'Failed to save product');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteProduct = async (id: string) => {
-    try {
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/products?id=eq.${id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        await fetchProducts();
-        setDeleteConfirm(null);
-  
-      }
-    } catch (error) {
-      console.error('Error deleting product:', error);
-
-    }
-  };
-
-  const handleSaveCategory = async (e?: React.FormEvent) => {
-    if (e) {
-      e.preventDefault();
-    }
-
-    // Validation
-    if (!categoryForm.name.trim()) {
-      setSaveError('Category name is required');
-      return;
-    }
-
-    setIsSaving(true);
-    setSaveError(null);
-
-    try {
-      const categoryData = {
-        name: categoryForm.name.trim(),
-        description: categoryForm.description.trim() || null,
-        display_order: parseInt(categoryForm.display_order) || 0,
-        is_active: categoryForm.is_active,
-      };
-
-      console.log('Saving category:', categoryData);
-
-      const url = editingCategory
-        ? `${SUPABASE_URL}/rest/v1/categories?id=eq.${editingCategory.id}`
-        : `${SUPABASE_URL}/rest/v1/categories`;
-
-      const response = await fetch(url, {
-        method: editingCategory ? 'PATCH' : 'POST',
-        headers: {
-          'apikey': SUPABASE_ANON_KEY,
-          'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'return=representation',
-        },
-        body: JSON.stringify(categoryData),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.message || 'Failed to save category');
-      }
-
-      const savedCategory = await response.json();
-      console.log('Category saved successfully:', savedCategory);
-
-      await fetchCategories();
-      closeCategoryModal();
-
-    } catch (error) {
-      console.error('Error saving category:', error);
-      setSaveError(error instanceof Error ? error.message : 'Failed to save category');
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleDeleteCategory = async (id: string) => {
-    try {
-      const productsInCategory = products.filter(p => p.category_id === id);
-      if (productsInCategory.length > 0) {
-     
-        return;
-      }
-
-      const response = await fetch(
-        `${SUPABASE_URL}/rest/v1/categories?id=eq.${id}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      if (response.ok) {
-        await fetchCategories();
-        setDeleteConfirm(null);
-     
-      }
-    } catch (error) {
-      console.error('Error deleting category:', error);
-   
-    }
-  };
 
   const openProductModal = (product?: Product) => {
     setSaveError(null);
@@ -784,7 +711,7 @@ export function ManageView() {
               <button
                 onClick={() => deleteConfirm.type === 'product' 
                   ? handleDeleteProduct(deleteConfirm.id) 
-                  : handleDeleteCategory(deleteConfirm.id)
+                  : deleteCategory(deleteConfirm.id)
                 }
                 className="flex-1 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
               >

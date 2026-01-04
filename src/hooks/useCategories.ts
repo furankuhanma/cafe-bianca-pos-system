@@ -1,5 +1,6 @@
+// src/hooks/useCategories.ts
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { initDatabase, getAllCategories } from '../lib/database';
 import type { Category } from '../lib/types';
 
 export function useCategories() {
@@ -16,15 +17,19 @@ export function useCategories() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('categories')
-        .select('*')
-        .eq('is_active', true)
-        .order('display_order');
+      // Initialize database if not already done
+      await initDatabase();
 
-      if (fetchError) throw fetchError;
+      // Get all active categories
+      const data = await getAllCategories();
 
-      setCategories(data || []);
+      // Map to match expected Category type
+      const mappedCategories = data.map(cat => ({
+        ...cat,
+        is_active: cat.is_active === 1,
+      }));
+
+      setCategories(mappedCategories);
     } catch (err) {
       console.error('Error fetching categories:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch categories');

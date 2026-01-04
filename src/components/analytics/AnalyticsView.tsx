@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { TrendingUp, ShoppingCart, DollarSign, Package, Calendar, X } from 'lucide-react';
+import { initDatabase, getDatabase } from '../../lib/database';
 
 // Simple date formatter
 const formatDate = (dateString: string) => {
@@ -97,76 +98,125 @@ export function Analytics() {
     return { start, end: now };
   };
 
-  const fetchAnalytics = async () => {
-    try {
-      setLoading(true);
-      const { start, end } = getDateRange();
 
-      // Only fetch completed orders for analytics
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(*))&created_at=gte.${start.toISOString()}&created_at=lte.${end.toISOString()}&status=eq.completed&order=created_at.asc`,
-        {
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
 
-      if (!response.ok) throw new Error('Failed to fetch analytics');
-      const orders: OrderData[] = await response.json();
+const fetchAnalytics = async () => {
+  try {
+    setLoading(true);
+    await initDatabase();
+    const db = getDatabase();
+    const { start, end } = getDateRange();
 
-      // Calculate analytics (only from completed orders)
-      const totalSales = orders.reduce((sum, order) => sum + order.total_amount, 0);
-      const totalOrders = orders.length;
-      const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+    // Get all completed orders in date range
+    const ordersResult = db.exec(`
+      SELECT o.*, oi.product_id, oi.quantity, oi.price_at_time, p.name as product_name
+      FROM orders o
+      LEFT JOIN order_items oi ON o.id = oi.order_id
+      LEFT JOIN products p ON oi.product_id = p.id
+      WHERE o.status = 'completed'
+        AND o.created_at >= ?
+        AND o.created_at <= ?
+      ORDER BY o.created_at ASC
+    `, [start.toISOString(), end.toISOString()]);
 
-      // Top products
-      const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
-      orders.forEach(order => {
-        order.order_items.forEach(item => {
-          const existing = productMap.get(item.product_id);
-          if (existing) {
-            existing.quantity += item.quantity;
-            existing.revenue += item.price_at_time * item.quantity;
-          } else {
-            productMap.set(item.product_id, {
-              name: item.products.name,
-              quantity: item.quantity,
-              revenue: item.price_at_time * item.quantity,
-            });
-          }
-        });
-      });
-
-      const topProducts = Array.from(productMap.values())
-        .sort((a, b) => b.revenue - a.revenue)
-        .slice(0, 5);
-
-      // Sales by day
-      const salesMap = new Map<string, number>();
-      orders.forEach(order => {
-        const date = formatDate(order.created_at);
-        salesMap.set(date, (salesMap.get(date) || 0) + order.total_amount);
-      });
-
-      const salesByDay = Array.from(salesMap.entries())
-        .map(([date, amount]) => ({ date, amount }))
-        .slice(-7);
-
+    if (ordersResult.length === 0) {
       setAnalytics({
-        totalSales,
-        totalOrders,
-        avgOrderValue,
-        topProducts,
-        salesByDay,
+        totalSales: 0,
+        totalOrders: 0,
+        avgOrderValue: 0,
+        topProducts: [],
+        salesByDay: [],
       });
-    } catch (err) {
-      console.error('Error fetching analytics:', err);
-    } finally {
-      setLoading(false);
+      return;
     }
-  };
+
+    const columns = ordersResult[0].columns;
+    const rows = ordersResult[0].values;
+
+    // Parse results
+    const orders: any[] = [];
+    const orderMap = new Map();
+
+    rows.forEach(row => {
+      const orderData: any = {};
+      columns.forEach((col, idx) => {
+        orderData[col] = row[idx];
+      });
+
+      if (!orderMap.has(orderData.id)) {
+        orderMap.set(orderData.id, {
+          id: orderData.id,
+          total_amount: orderData.total_amount,
+          created_at: orderData.created_at,
+          items: []
+        });
+      }
+
+      if (orderData.product_id) {
+        orderMap.get(orderData.id).items.push({
+          product_id: orderData.product_id,
+          product_name: orderData.product_name,
+          quantity: orderData.quantity,
+          price_at_time: orderData.price_at_time
+        });
+      }
+    });
+
+    const ordersArray = Array.from(orderMap.values());
+
+    // Calculate analytics
+    const totalSales = ordersArray.reduce((sum, order) => sum + order.total_amount, 0);
+    const totalOrders = ordersArray.length;
+    const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
+
+    // Top products
+    const productMap = new Map<string, { name: string; quantity: number; revenue: number }>();
+    ordersArray.forEach(order => {
+      order.items.forEach((item: any) => {
+        const existing = productMap.get(item.product_id);
+        if (existing) {
+          existing.quantity += item.quantity;
+          existing.revenue += item.price_at_time * item.quantity;
+        } else {
+          productMap.set(item.product_id, {
+            name: item.product_name,
+            quantity: item.quantity,
+            revenue: item.price_at_time * item.quantity,
+          });
+        }
+      });
+    });
+
+    const topProducts = Array.from(productMap.values())
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // Sales by day
+    const salesMap = new Map<string, number>();
+    ordersArray.forEach(order => {
+      const date = formatDate(order.created_at);
+      salesMap.set(date, (salesMap.get(date) || 0) + order.total_amount);
+    });
+
+    const salesByDay = Array.from(salesMap.entries())
+      .map(([date, amount]) => ({ date, amount }))
+      .slice(-7);
+
+    setAnalytics({
+      totalSales,
+      totalOrders,
+      avgOrderValue,
+      topProducts,
+      salesByDay,
+    });
+  } catch (err) {
+    console.error('Error fetching analytics:', err);
+  } finally {
+    setLoading(false);
+  }
+};
+
+// Keep everything else the same!
 
   if (loading) {
     return (

@@ -1,5 +1,6 @@
+// src/hooks/useProducts.ts
 import { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { initDatabase, getAllProducts } from '../lib/database';
 import type { Product } from '../lib/types';
 
 export function useProducts() {
@@ -16,17 +17,17 @@ export function useProducts() {
       setLoading(true);
       setError(null);
 
-      const { data, error: fetchError } = await supabase
-        .from('products')
-        .select('*')
-        .eq('is_available', true)
-        .order('name');
+      // Initialize database if not already done
+      await initDatabase();
 
-      if (fetchError) throw fetchError;
+      // Get all available products
+      const data = await getAllProducts(false);
 
-      const productsWithImage = (data || []).map(product => ({
+      // Map to match expected Product type
+      const productsWithImage = data.map(product => ({
         ...product,
         image: product.image_url ?? null,
+        is_available: product.is_available === 1,
       }));
 
       setProducts(productsWithImage);

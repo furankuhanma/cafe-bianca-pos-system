@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Trash2, Eye, AlertCircle, ShoppingBag, X, Wallet, Smartphone } from 'lucide-react';
+import { initDatabase, getAllOrders, updateOrder, deleteOrder } from '../../lib/database';
 
 // Simple date formatter
 const formatDate = (dateString: string) => {
@@ -61,18 +62,8 @@ export function OrderHistory() {
       setLoading(true);
       setError(null);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?select=*,order_items(*,products(*))&order=created_at.desc&limit=50`,
-        {
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to fetch orders');
-      const data = await response.json();
+      await initDatabase();
+      const data = await getAllOrders();
       setOrders(data || []);
     } catch (err) {
       console.error('Error fetching orders:', err);
@@ -84,24 +75,10 @@ export function OrderHistory() {
 
   const handleStatusChange = async (orderId: string, newStatus: 'pending' | 'completed' | 'cancelled') => {
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
-        {
-          method: 'PATCH',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-            'Content-Type': 'application/json',
-            'Prefer': 'return=representation',
-          },
-          body: JSON.stringify({ 
-            status: newStatus,
-            completed_at: newStatus === 'completed' ? new Date().toISOString() : null
-          }),
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to update order status');
+      await updateOrder(orderId, {
+        status: newStatus,
+        completed_at: newStatus === 'completed' ? new Date().toISOString() : undefined,
+      });
 
       setOrders(orders.map(o => 
         o.id === orderId 
@@ -120,29 +97,7 @@ export function OrderHistory() {
 
   const handleDelete = async (orderId: string) => {
     try {
-      await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/order_items?order_id=eq.${orderId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/orders?id=eq.${orderId}`,
-        {
-          method: 'DELETE',
-          headers: {
-            'apikey': import.meta.env.VITE_SUPABASE_ANON_KEY,
-            'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-          },
-        }
-      );
-
-      if (!response.ok) throw new Error('Failed to delete order');
+      await deleteOrder(orderId);
 
       setOrders(orders.filter(o => o.id !== orderId));
       setDeleteConfirm(null);

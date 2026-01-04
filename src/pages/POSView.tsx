@@ -4,7 +4,8 @@ import { ShoppingCart, Search, X, Minus, Plus, Trash2, Wallet, Smartphone } from
 import { useProducts } from '../hooks/useProducts';
 import { useCategories } from '../hooks/useCategories';
 import { useCart } from '../context/CartContext';
-import { supabase } from '../lib/supabase';
+import { createOrder } from '../lib/database';
+
 
 
 export function POSView() {
@@ -47,54 +48,39 @@ export function POSView() {
     return matchesSearch && matchesCategory;
   });
 
-  const handleOrderNow = async () => {
-    if (items.length === 0) return;
+const handleOrderNow = async () => {
+  if (items.length === 0) return;
 
-    setIsSubmitting(true);
-    try {
-      const { data: order, error: orderError } = await supabase
-        .from('orders')
-        .insert({
-          total_amount: totalAmount,
-          status: 'pending',
-          payment_method: paymentMethod,
-          customer_name: notes || null,
-        })
-        .select()
-        .maybeSingle();
-
-      if (orderError) throw orderError;
-      if (!order) throw new Error('Failed to create order');
-
-      const orderItems = items.map(item => ({
-        order_id: order.id,
+  setIsSubmitting(true);
+  try {
+    await createOrder({
+      total_amount: totalAmount,
+      status: 'pending',
+      payment_method: paymentMethod,
+      customer_name: notes || undefined,
+      items: items.map(item => ({
         product_id: item.id,
         quantity: item.quantity,
         price_at_time: item.price,
-        notes: item.notes || null,
-      }));
+        notes: item.notes,
+      })),
+    });
 
-      const { error: itemsError } = await supabase
-        .from('order_items')
-        .insert(orderItems);
+ setOrderSuccess(true);
+    setTimeout(() => {
+      setOrderSuccess(false);
+    }, 3000);
 
-      if (itemsError) throw itemsError;
-
-      setOrderSuccess(true);
-      setTimeout(() => {
-        setOrderSuccess(false);
-      }, 3000);
-
-      clearCart();
-      setShowCart(false);
-      setPaymentMethod('cash'); // Reset to default
-    } catch (error) {
-      console.error('Error creating order:', error);
-      alert('Failed to create order. Please try again.');
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    clearCart();
+    setShowCart(false);
+    setPaymentMethod('cash');
+  } catch (error) {
+    console.error('Error creating order:', error);
+    alert('Failed to create order. Please try again.');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
 
   if (productsLoading || categoriesLoading) {
     return (
